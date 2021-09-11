@@ -59,7 +59,7 @@ function clear_canvas(){
 clear_canvas()
 
 
-function matToImg(arr, width, height, i, j){
+function tensorToImage(arr, width, height){
     let buffer = new Uint8ClampedArray(width * height * 4); // have enough bytes
     for(let y = 0; y < height; y++) {
         for(let x = 0; x < width; x++) {
@@ -93,6 +93,7 @@ function matToImg(arr, width, height, i, j){
     image.onload = ()=>{
         updateTexture(image, meshes[i][j].material)
     }
+
 }
 
 
@@ -114,10 +115,12 @@ function predict_multi(im){
     // matToImg(yyy, 26, 26, 4, 4)
     // tf.engine().endScope()
     for(let i=0;i<11;i++){
+        if(i == 3 || i == 7) continue
         tf.engine().startScope()
         let modelA = layers[i];
         let prediction = modelA.predict(tensor);
         prediction.print(true)
+
         if(i == 14){
             let preds = prediction.dataSync().map((num)=>{
                 return (num*100).toPrecision(4)
