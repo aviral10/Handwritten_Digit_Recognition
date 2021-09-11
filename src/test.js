@@ -58,35 +58,38 @@ function clear_canvas(){
 }
 clear_canvas()
 
-function predict_multi(im){
-    let tensor = tf.tidy(() => {
-        let ts = tf.browser.fromPixels(im, 1);
-        ts = tf.cast(ts,'float32');
-        ts = ts.div(tf.scalar(-255))
-        ts = ts.add(tf.scalar(1))
-        ts = tf.image.resizeBilinear(ts, [28,28]).mean(2).expandDims(-1).expandDims()
-        return ts;
-    });
-    tf.engine().startScope()
-    let yy = layers[1].predict(tensor);
-    let yyy = yy.slice([0,0,0,0],[1,26,26,1]).reshape([26,26]).dataSync()
-    matToImg(yyy, 26, 26, 4, 4)
-    tf.engine().endScope()
-    for(let i=0;i<15;i++){
-        tf.engine().startScope()
-        let modelA = layers[i];
-        let prediction = modelA.predict(tensor);
-        if(i == 14){
-            let preds = prediction.dataSync().map((num)=>{
-                return (num*100).toPrecision(4)
-            })
-            updateChart(preds);
+let fakeCanvas = document.createElement('Canvas')
+function tensorToImage(arr, width, height){
+    let buffer = new Uint8ClampedArray(width * height * 4); // have enough bytes
+    for(let y = 0; y < height; y++) {
+        for(let x = 0; x < width; x++) {
+            let POS = (y * width + x)
+            let pos = POS * 4; // position in buffer based on x and y
+            
+            buffer[pos  ] = 255 - Math.floor(arr[POS]*255);           // some R value [0, 255]
+            buffer[pos+1] = 255 - Math.floor(arr[POS]*255);           // some G value
+            buffer[pos+2] = 255 - Math.floor(arr[POS]*255);           // some B value
+            buffer[pos+3] = 255;           // set alpha channel
         }
-        tf.engine().endScope()
     }
-    tensor.dispose();
-    console.log("Tensors: ", tf.memory().numTensors);
+    
+    ctx = fakeCanvas.getContext('2d');
+    fakeCanvas.width = width;
+    fakeCanvas.height = height;
+    // create imageData object
+    let idata = ctx.createImageData(width, height);
+    // set our buffer as source
+    idata.data.set(buffer);
+    // update fakeCanvas with new data
+    ctx.putImageData(idata,0,0);
+    // create a new img object
+    let image=new Image();
+    // set the img.src to the fakeCanvas data url
+    image.src=fakeCanvas.toDataURL();
+    // append the new img object to the page
+    return image
 }
+
 
 
 function predict_basic(im){
@@ -178,6 +181,7 @@ updateChart([0,0,0,0,0,0,0,0,0,0]);
 
 /// THREE JS 
 import * as dat from 'dat.gui'
+import { update } from '@tensorflow/tfjs-layers/dist/variables';
 
 
 // Canvas
@@ -198,8 +202,8 @@ let texture = textureLoader.load('texture_4.png')
 texture.magFilter = THREE.NearestFilter
 
 
-
-const geometry = new THREE.BoxBufferGeometry(1, 1, 0.026)
+let ratio = 1/28
+const geometry = new THREE.BoxBufferGeometry(28*ratio, 28*ratio, 0.026)
 
 // const mesh = new THREE.Mesh(geometry, material)
 // scene.add(mesh)
@@ -222,41 +226,75 @@ for(let i = 0;i<sz;i++){
     meshes.push(temp)
 }
 
-function matToImg(arr, width, height, i, j){
-    let buffer = new Uint8ClampedArray(width * height * 4); // have enough bytes
-    for(let y = 0; y < height; y++) {
-        for(let x = 0; x < width; x++) {
-            let POS = (y * width + x)
-            let pos = POS * 4; // position in buffer based on x and y
+function applyTexturesbyLayer(layer){
+    let n = images[layer].length
+    let sz = Math.floor(Math.sqrt(n))
+    for(let i=0;i<sz;i++){
+        for(let j=0;j<sz;j++){
+            let num = i*sz+j;
+            let image = images[layer][num]
+            image.onload = ()=>{
+                // console.log(num)
+                updateTexture(image, meshes[i][j].material)
+            }
             
-            buffer[pos  ] = 255 - Math.floor(arr[POS]*255);           // some R value [0, 255]
-            buffer[pos+1] = 255 - Math.floor(arr[POS]*255);           // some G value
-            buffer[pos+2] = 255 - Math.floor(arr[POS]*255);           // some B value
-            buffer[pos+3] = 255;           // set alpha channel
         }
     }
-    let canvas = document.createElement('canvas'),
-    ctx = canvas.getContext('2d');
-    canvas.width = width;
-    canvas.height = height;
-    // create imageData object
-    let idata = ctx.createImageData(width, height);
-    // set our buffer as source
-    idata.data.set(buffer);
-    // update canvas with new data
-    ctx.putImageData(idata,0,0);
-    // create a new img object
-    let image=new Image();
-    // set the img.src to the canvas data url
-    image.src=canvas.toDataURL();
-    // append the new img object to the page
-    
-    // let ii = document.getElementById('sample')
-    // ii.src = image.src
-    image.onload = ()=>{
-        updateTexture(image, meshes[i][j].material)
-    }
 }
+
+
+let images = []
+let layersLabels = [[28,1],[26,64],[24,64],[12,64],[12,64],[10,128],[8,128],[4,128],[4,128],[2,256],[1,256],256,256,512,10]
+function predict_multi(im){
+    images = []
+    let tensor = tf.tidy(() => {
+        let ts = tf.browser.fromPixels(im, 1);
+        ts = tf.cast(ts,'float32');
+        ts = ts.div(tf.scalar(-255))
+        ts = ts.add(tf.scalar(1))
+        ts = tf.image.resizeBilinear(ts, [28,28]).mean(2).expandDims(-1).expandDims()
+        return ts;
+    });
+    tf.engine().startScope()
+    for(let i=0;i<15;i++){
+        if(i == 3 || i == 7) continue
+        
+        // console.log("I: ", i)
+        
+        let modelA = layers[i];
+        let prediction = modelA.predict(tensor);
+        // prediction.print(true)
+        if(i >= 11){
+            let synced = prediction.dataSync()
+            
+            if(i == 14){
+                synced = synced.map((num)=>{
+                    return (num*100).toPrecision(4)
+                })
+                updateChart(synced);
+            }
+            images.push(synced)
+            continue;
+        }
+        
+        let shape = layersLabels[i][0]
+        let layer_images = []
+        for(let k = 0;k<layersLabels[i][1];k++){
+            let synced = prediction.slice([0,0,0,k], [1,shape,shape,1]).reshape([shape, shape]).dataSync()
+            let img = tensorToImage(synced, shape, shape)
+            layer_images.push(img)
+        }
+        images.push(layer_images)
+        
+        
+    }
+    applyTexturesbyLayer(1)
+    tensor.dispose();
+    tf.engine().endScope()
+    console.log("Tensors: ", tf.memory().numTensors);
+    console.log(images)
+}
+
 
 function updateTexture(image, material) {
     texture = new THREE.Texture( image );
@@ -311,7 +349,13 @@ scene.add(camera)
 // Controls
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
-controls.target = new THREE.Vector3(5,5,5)
+controls.target = new THREE.Vector3(meshes[3][3].position.x, meshes[3][3].position.y,meshes[3][3].position.z)
+controls.keys = {
+	LEFT: 'KeyA', //left arrow
+	UP: 'KeyW', // up arrow
+	RIGHT: 'KeyD', // right arrow
+	BOTTOM: 'KeyS' // down arrow
+}
 /**
  * Renderer
  */

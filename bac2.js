@@ -107,7 +107,7 @@ let layersLabels = [[28,1,1],
                     [2, 256,16],
                     [1, 256,16],
                     [1,15,15],
-                    [1,15,15],
+                    [1,30,30],
                     [1,30,30],
                     [1,10,10]]
 let finalLabels  = [[26,64,8],
@@ -135,7 +135,7 @@ function predict_multi(im){
     });
     tf.engine().startScope()
     for(let i=1;i<15;i++){
-        if(i == 3 || i == 6 ||  i == 7 || i == 11) continue
+        if(i == 3 || i == 6 ||  i == 7 || i == 12) continue
         
         // console.log("I: ", i)
         
@@ -299,7 +299,7 @@ let meshes = []
 let gaps = [5,5,2,2,1.5,1.5,1.5,1.5,1.5,1.5]
 function generateMeshes(){
     for(let i=1;i<15;i++){
-        if(i == 3 || i == 6 || i == 7 || i == 11) continue
+        if(i == 3 || i == 6 || i == 7 || i == 12) continue
         
         let I = layersLabels[i][2]
         let J = layersLabels[i][1]/layersLabels[i][2]
@@ -446,9 +446,6 @@ function getRandomArray(n){
 generateLines()
 
 function applyTexturesbyLayer(layer){
-    if(layer >= 7){
-        
-    }
     let I = finalLabels[layer][2]
     let J = finalLabels[layer][1]/finalLabels[layer][2]
     let sz = finalLabels[layer][0]
