@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handwritten Digit Recognition</title>
+</head>
+<body>
+    
+    <div style="width: 100%0;">
+        <div class='test' style="float: left; width: 30%;">
+            <h1 id="display"></h1>
+            <canvas id="sketchpad" style="border:1px solid #000000;"></canvas>
+            <button id='pred'>Click me</button> 
+            <button id='clr'>Clear</button> 
+        </div>
+        <div class="bottom" style="float: left; width: 50%;">
+            <canvas id="myChart" class="graph" width="700" height="500"></canvas>
+        </div>
+        <!-- <div style="float: left; width: 200px;">Right Stuff</div> -->
+        <br style="clear: left;" />
+    </div>
+    <image id="sample"></image>
+    <canvas class="webgl"></canvas>
+    <!--    Charts API      -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+    
+</body>
+</html>
