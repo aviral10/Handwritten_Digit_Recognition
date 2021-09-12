@@ -4,13 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Handwritten Digit Recognition</title>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
 </head>
 <body>
     
     <div style="width: 100%;">
         <div class='test' style="float: left; width: 30%;">
             <h1 id="display"></h1>
-            <canvas id="sketchpad" style="border:1px solid #000000;"></canvas>
+            <canvas class="sketchpad" id="sketchpad" style="border:1px solid #000000;"></canvas>
             <button id='pred'>Click me</button> 
             <button id='clr'>Clear</button> 
         </div>
