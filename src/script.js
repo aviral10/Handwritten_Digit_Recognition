@@ -80,6 +80,8 @@ threeDbutt.onclick = ()=>{
 
 
 
+
+
 function callmemaybe(){
 
     let ctx = sk.getContext('2d');
@@ -448,7 +450,7 @@ function randomRange(min, max) {
 
 function generateLines(){
     if(dont_render_lines == false){
-        for(let layer=0;layer<finalLabels.length-3-1;layer++){
+        for(let layer=0;layer<10-3-1;layer++){
             let I = finalLabels[layer][2]
             let J = finalLabels[layer][1]/finalLabels[layer][2]
             for(let i=0;i<I;i+=randomRange(1,3)){
@@ -466,7 +468,7 @@ function generateLines(){
         }
     }
     
-    // for(let layer=finalLabels.length-3-1;layer<finalLabels.length-3;layer++){
+    // for(let layer=10-3-1;layer<10-3;layer++){
     //     let I = finalLabels[layer][2]
     //     let J = finalLabels[layer][1]/finalLabels[layer][2]
     //     for(let i=0;i<I;i+=randomRange(1,3)){
@@ -482,7 +484,7 @@ function generateLines(){
     //         }
     //     }
     // }
-    for(let layer=finalLabels.length-3;layer<finalLabels.length-1;layer++){
+    for(let layer=10-3;layer<10-1;layer++){
         let I = finalLabels[layer][2]
         let J = finalLabels[layer][1]/finalLabels[layer][2]
         for(let i=0;i<I;i+=2){
@@ -532,7 +534,7 @@ function applyTexturesbyLayer(layer){
             let texture = new THREE.MeshBasicMaterial();
             texture.color = new THREE.Color("rgb("+val+","+val+","+val+")")
             meshes[layer][i][0].material = texture
-            if(layer == finalLabels.length-1){
+            if(layer == 10-1){
                 text_array[i].material = texture
             }
             texture.needsUpdate = true;

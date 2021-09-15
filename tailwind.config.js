@@ -6,6 +6,9 @@ module.exports = {
       height: {
         "100": '35rem'
        },
+       fontFamily: {
+        "JB": "JetBrains Mono, monospace"
+       }
     },
   },
   variants: {
