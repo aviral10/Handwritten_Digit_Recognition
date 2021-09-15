@@ -1,15 +1,18 @@
 import './style.css'
-import './sketchpad.js'
+// import './sketchpad.js'
+import { Sketchpad } from './sketchpad_new.js'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import * as tf from '@tensorflow/tfjs';
-// import { update } from '@tensorflow/tfjs-layers/dist/variables';
-
+// import * as skk from 'sketchpad'
 /// prep
+
+
 
 let model;
 let layers = [];
-
+let answer;
+let base_image = []
 function loadModel(){
     model = tf.loadLayersModel("mnist_model_js/model.json");
     model.then((res)=>{
@@ -30,6 +33,7 @@ let sketchpad = new Sketchpad({
     height: 300
 });
 sketchpad.penSize = 40
+let fakeCanvas = document.createElement('Canvas')
 
 // Setting up buttons
 let butt = document.getElementById('clr')
@@ -45,9 +49,7 @@ sk.onmousemove = function(event) {
 }
 
 function callmemaybe(){
-//     document
-//   .getElementById('canv')
-//   .scrollIntoView({ behavior: 'smooth' });
+
     let ctx = sk.getContext('2d');
     let imageData = ctx.getImageData(0, 0, sk.width, sk.height);
     predict_multi(imageData)
@@ -61,7 +63,7 @@ function clear_canvas(){
 }
 clear_canvas()
 
-let fakeCanvas = document.createElement('Canvas')
+
 function tensorToImage(arr, width, height){
     let buffer = new Uint8ClampedArray(width * height * 4); // have enough bytes
     for(let y = 0; y < height; y++) {
@@ -107,7 +109,7 @@ let layersLabels = [[28,1,1],
                     [2, 256,16],
                     [1, 256,16],
                     [1,15,15],
-                    [1,30,30],
+                    [1,15,15],
                     [1,30,30],
                     [1,10,10]]
 let finalLabels  = [[26,64,8],
@@ -123,29 +125,30 @@ let finalLabels  = [[26,64,8],
 
 
 function predict_multi(im){
-    
     images = []
     let tensor = tf.tidy(() => {
         let ts = tf.browser.fromPixels(im, 1);
         ts = tf.cast(ts,'float32');
         ts = ts.div(tf.scalar(-255))
         ts = ts.add(tf.scalar(1))
-        ts = tf.image.resizeBilinear(ts, [28,28]).mean(2).expandDims(-1).expandDims()
+        // ts = tf.image.resizeBilinear(ts, [28,28]).mean(2).expandDims(-1).expandDims()
+        ts = tf.image.resizeBilinear(ts, [28,28]).mean(2)
+        
+        base_image = ts.dataSync();
+        // console.log(base_image)
+        ts = ts.expandDims(-1).expandDims()
         return ts;
     });
     tf.engine().startScope()
     for(let i=1;i<15;i++){
-        if(i == 3 || i == 6 ||  i == 7 || i == 12) continue
-        
-        // console.log("I: ", i)
-        
+        if(i == 3 || i == 6 ||  i == 7 || i == 11) continue
         let modelA = layers[i];
         let prediction = modelA.predict(tensor);
         // prediction.print(true)
         if(i >= 11){
             let synced = prediction.dataSync()
-            
             if(i == 14){
+                answer = prediction.argMax(1).dataSync()[0]
                 synced = synced.map((num)=>{
                     return (num*100).toPrecision(4)
                 })
@@ -155,24 +158,27 @@ function predict_multi(im){
             continue;
         }
         
-        let shape = layersLabels[i][0]
-        let layer_images = []
-        for(let k = 0;k<layersLabels[i][1];k++){
-            let synced = prediction.slice([0,0,0,k], [1,shape,shape,1]).reshape([shape, shape]).dataSync()
-            let img = tensorToImage(synced, shape, shape)
-            layer_images.push(img)
-        }
-        images.push(layer_images)
-        
+        // let shape = layersLabels[i][0]
+        // let layer_images = []
+        // for(let k = 0;k<layersLabels[i][1];k++){
+        //     let synced = prediction.slice([0,0,0,k], [1,shape,shape,1]).reshape([shape, shape]).dataSync()
+        //     let img = tensorToImage(synced, shape, shape)
+        //     layer_images.push(img)
+        // }
+        // images.push(layer_images)
     }
-    for(let i=0;i<images.length-3;i++){
-        applyTexturesbyLayer(i);
+    
+    // Update textures
+    for(let i=0;i<images.length;i++){
+        // applyTexturesbyLayer(i);
     }
+    // update_base()
 
+
+    images = []
     tensor.dispose();
     tf.engine().endScope()
     console.log("Tensors: ", tf.memory().numTensors);
-    console.log(images)
 }
 
 
@@ -267,6 +273,7 @@ updateChart([0,0,0,0,0,0,0,0,0,0]);
 import * as dat from 'dat.gui'
 import { update } from '@tensorflow/tfjs-layers/dist/variables';
 import { random } from 'gsap/all';
+import { DataTexture2DArray, TextBufferGeometry } from 'three';
 
 const group = new THREE.Group();
 // Canvas
@@ -286,6 +293,8 @@ let textureLoader = new THREE.TextureLoader()
 let texture = textureLoader.load('texture_none.png')
 texture.magFilter = THREE.NearestFilter
 
+let fontLoader = new THREE.FontLoader()
+
 
 let ratio = 1/14
 let gap = 1
@@ -295,11 +304,13 @@ let gap = 1
 // scene.add(mesh)
 
 let meshes = []
-
+let nums_t = 0
 let gaps = [5,5,2,2,1.5,1.5,1.5,1.5,1.5,1.5]
+let text_array = []
+let base_meshes = []
 function generateMeshes(){
     for(let i=1;i<15;i++){
-        if(i == 3 || i == 6 || i == 7 || i == 12) continue
+        if(i == 3 || i == 6 || i == 7 || i == 11) continue
         
         let I = layersLabels[i][2]
         let J = layersLabels[i][1]/layersLabels[i][2]
@@ -317,6 +328,36 @@ function generateMeshes(){
                     mesh.position.x = (ii*gap)+ii - I;
                     mesh.position.y = (jj*gap)+jj - J;
                     mesh.position.z = -((i*5) - i) ;
+                    if(I == 10 ||  J == 10){
+                        fontLoader.load(
+                            '/fonts/helvetiker_regular.typeface.json',
+                            (font)=>{
+                                let textGeometry = new TextBufferGeometry(
+                                    String(nums_t++),
+                                    {
+                                        font: font,
+                                        size: 1,
+                                        height: 0.2,
+                                        curveSegments: 6,
+                                        bevelEnabled: true,
+                                        bevelThickness: 0.03,
+                                        bevelSize: 0.02,
+                                        bevelOffset: 0,
+                                        bevelSegments: 5
+                                    }
+                                )
+                                let textMaterial = new THREE.MeshBasicMaterial()
+                                let text = new THREE.Mesh(textGeometry, textMaterial);
+                                text.position.x = (ii*gap)+ii - I;
+                                text.position.y = (jj*gap)+jj - J;
+                                text.position.z = -((i*5) - i) ;
+                                text.rotation.x = Math.PI
+                                text.rotation.z = Math.PI
+                                text_array.push(text)
+                                group.add(text);
+                            }
+                        )
+                    }
                 }else{
                     geometry = new THREE.BoxBufferGeometry(sz*ratio, sz*ratio, 0.03)
                     mesh = new THREE.Mesh(geometry, material)
@@ -326,17 +367,29 @@ function generateMeshes(){
                 }
                 
                 temp.push(mesh)
-                // scene.add(mesh)
                 group.add(mesh)
             }
             TEMP.push(temp)
         }
         meshes.push(TEMP)
     }
+    base_meshes = []
+    let sz = layersLabels[0][0]
+    for(let i=0;i<28;i++){
+        for(let j=0;j<28;j++){
+            let geometry = new THREE.BoxBufferGeometry(8*ratio, 8*ratio, 0.1)
+            let material = new THREE.MeshBasicMaterial()
+            let mesh = new THREE.Mesh(geometry, material)
+            mesh.position.x = (i*0.05)+i - 15;
+            mesh.position.y = (j*0.05)+j - 15;
+            mesh.position.z = 5;
+            base_meshes.push(mesh)
+            group.add(mesh)
+        }
+    }
+    
 }
 generateMeshes()
-
-
 
 function generateALine(posA, posB){
     const materialA = new THREE.LineBasicMaterial( { color: 0xffffff } );
@@ -375,22 +428,22 @@ function generateLines(){
             }
         }
     }
-    for(let layer=finalLabels.length-3-1;layer<finalLabels.length-3;layer++){
-        let I = finalLabels[layer][2]
-        let J = finalLabels[layer][1]/finalLabels[layer][2]
-        for(let i=0;i<I;i+=randomRange(1,3)){
-            for(let j=0;j<J;j+=randomRange(1,3)){
-                let II = finalLabels[layer+1][2]
-                let JJ = finalLabels[layer+1][1]/finalLabels[layer+1][2]
-                for(let k=0;k<II;k++){
-                    for(let l=0;l<JJ;l++){
-                        generateALine(meshes[layer][i][j].position, meshes[layer+1][k][l].position);
-                        // console.log(i,j,k,l)
-                    }
-                }
-            }
-        }
-    }
+    // for(let layer=finalLabels.length-3-1;layer<finalLabels.length-3;layer++){
+    //     let I = finalLabels[layer][2]
+    //     let J = finalLabels[layer][1]/finalLabels[layer][2]
+    //     for(let i=0;i<I;i+=randomRange(1,3)){
+    //         for(let j=0;j<J;j+=randomRange(1,3)){
+    //             let II = finalLabels[layer+1][2]
+    //             let JJ = finalLabels[layer+1][1]/finalLabels[layer+1][2]
+    //             for(let k=0;k<II;k++){
+    //                 for(let l=0;l<JJ;l++){
+    //                     generateALine(meshes[layer][i][j].position, meshes[layer+1][k][l].position);
+    //                     // console.log(i,j,k,l)
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
     for(let layer=finalLabels.length-3;layer<finalLabels.length-1;layer++){
         let I = finalLabels[layer][2]
         let J = finalLabels[layer][1]/finalLabels[layer][2]
@@ -419,33 +472,39 @@ function getRandomArray(n){
     random = random.sort(() => .5 - Math.random()).slice(0,randomRange(0,Math.min(100,n))).sort()
     return random
 }
-// function generateLines(){
-//     console.log(meshes)
-//     for(let layer=0;layer<meshes.length-1;layer++){
-//         let I = finalLabels[layer][2]
-//         let J = finalLabels[layer][1]/finalLabels[layer][2]
-//         let ri = getRandomArray(I)
-//         for(let i of ri){
-//             let rj = getRandomArray(J)
-//             for(let j of rj){
-//                 let II = finalLabels[layer+1][2]
-//                 let JJ = finalLabels[layer+1][1]/finalLabels[layer+1][2]
-//                 let rii = getRandomArray(II)
-//                 for(let k of rii){
-//                     let rjj = getRandomArray(JJ)
-//                     for(let l of rjj){
-                        
-//                         generateALine(meshes[layer][i][j].position, meshes[layer+1][k][l].position);
-//                         // console.log(i,j,k,l)
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
 generateLines()
 
+
+function update_base(){
+    for(let i=0;i<28;i++){
+        for(let j=0;j<28;j++){
+            let val = Math.floor(Math.abs(base_image[i*28+j]*255));
+            let texture = new THREE.MeshBasicMaterial();
+            texture.color = new THREE.Color("rgb("+val+","+val+","+val+")")
+            base_meshes[j*28+27-i].material = texture
+            texture.needsUpdate = true;
+        }
+    }
+    // base_meshes = []
+}
+
+
 function applyTexturesbyLayer(layer){
+    if(layer >= 7){
+        let sz = finalLabels[layer][1]
+        for(let i=0;i<sz;i++){
+            let val = Math.floor(Math.abs(images[layer][i]*255));
+            let texture = new THREE.MeshBasicMaterial();
+            texture.color = new THREE.Color("rgb("+val+","+val+","+val+")")
+            meshes[layer][i][0].material = texture
+            if(layer == finalLabels.length-1){
+                text_array[i].material = texture
+            }
+            texture.needsUpdate = true;
+        }
+        
+        return;
+    }
     let I = finalLabels[layer][2]
     let J = finalLabels[layer][1]/finalLabels[layer][2]
     let sz = finalLabels[layer][0]
@@ -460,10 +519,9 @@ function applyTexturesbyLayer(layer){
             }
         }
     }
+
 }
 
-
-let mesh = meshes[1][0][0]
 // gui.add(mesh.position, 'x').min(mesh.position.x).max(mesh.position.x+3).step(0.001)
 // gui.add(mesh.position, 'y').min(mesh.position.y).max(mesh.position.y+3).step(0.001)
 // gui.add(mesh.position, 'z').min(mesh.position.z).max(mesh.position.z+3).step(0.001)
@@ -480,28 +538,8 @@ function updateTexture(image, material) {
 const sizee = 10;
 const divisions = 10;
 
-const gridHelper = new THREE.GridHelper( sizee, divisions );
-scene.add( gridHelper );
-
-
-// let amb = new THREE.AmbientLight(0xffffff, 0.5)
-// let pointLight = new THREE.PointLight(0x555555, 0.5)
-// pointLight.position.x = 2
-// pointLight.position.y = 3
-// pointLight.position.z = 4
-// const sphereSize = 1;
-// const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize );
-// scene.add( pointLightHelper );
-// scene.add(amb, pointLight)
-// const geo = new THREE.TorusBufferGeometry(0.3, 0.2, 16, 32)
-// let mater = new THREE.MeshPhongMaterial()
-// mater.transparent = true
-// mater.opacity = 0.5
-// mater.shininess = 100
-// let meshi = new THREE.Mesh(geo, mater)
-// meshi.position.x = 1.5
-// scene.add(meshi)
-
+// const gridHelper = new THREE.GridHelper( sizee, divisions );
+// scene.add( gridHelper );
 
 
 /**
@@ -536,7 +574,7 @@ window.addEventListener('resize', () =>
 // Base camera
 const camera = new THREE.PerspectiveCamera(45, sizes.width / sizes.height, 0.1, 500)
 camera.position.x = 0
-camera.position.y = 40
+camera.position.y = 0
 camera.position.z = 50
 scene.add(camera)
 
@@ -565,22 +603,18 @@ THREE.Object3D.prototype.rotateAroundWorldAxis = function() {
 }();
 
 let p = new THREE.Vector3(0, 0, 0);
-let ax = new THREE.Vector3(0, 0.5, 0);
+let ax = new THREE.Vector3(0, 1, 0);
 
 
 
 new THREE.Box3().setFromObject( group ).getCenter( group.position ).multiplyScalar( - 1 );
 
-// scene.add( object );
-scene.add(group)
-// gui.add(p, 'x').min(-50).max(50).step(0.01)
-// gui.add(p, 'y').min(-50).max(50).step(0.01)
-// gui.add(p, 'z').min(-50).max(50).step(0.01)
-// gui.add(ax, 'x').min(-50).max(50).step(0.01)
-// gui.add(ax, 'y').min(-50).max(50).step(0.01)
-// gui.add(ax, 'z').min(-50).max(50).step(0.01)
+let  pivot = new THREE.Group();
+pivot.add( group );
+group.position.set( 0, 0, 28 );
 
-
+scene.add( pivot );
+// scene.add(group)
 
 /**
  * Renderer
@@ -603,7 +637,8 @@ const tick = () =>
     controls.update()
     // group.rotation.y = elapsedTime
     // Render
-    group.rotateAroundWorldAxis(p, ax, 0.008);
+    pivot.rotation.y = elapsedTime*0.2
+    // group.rotateAroundWorldAxis(p, ax, 0.008);
     renderer.render(scene, camera)
 
     // Call tick again on the next frame

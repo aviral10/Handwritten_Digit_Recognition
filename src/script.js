@@ -38,22 +38,57 @@ let fakeCanvas = document.createElement('Canvas')
 // Setting up buttons
 let butt = document.getElementById('clr')
 butt.onclick = clear_canvas
-butt = document.getElementById('pred')
-pred.onclick = callmemaybe
+butt = document.getElementById('threeDbutt')
+butt.onclick = callmemaybe
 
+let choice = 0;
 // Make it Realtime
 sk.onmousemove = function(event) {
     if(event.buttons == 1) {
-        // callmemaybe();
+        callmemaybe();
     }
 }
+sk.ontouchmove = function(event) {
+    callmemaybe();
+}
+
+// Scroll to the results
+
+let dont_render_lines = false;
+let threeDbutt = document.getElementById('threeDbutt')
+threeDbutt.onclick = ()=>{
+    if(choice == 0){
+        choice = 1;
+        sk.onmousemove = ()=>{};
+        
+        threeDbutt.innerHTML = "Predict"
+        document.getElementById("canv_holder").style.display = 'block';
+        let w = parseInt(window.innerWidth);
+        
+        if(w <= 800) {
+            dont_render_lines = true;
+        }
+        threeD();
+    }else{
+        
+        callmemaybe();    
+    }
+    $('html, body').animate({
+        'scrollTop' : $("#canv").position().top
+    }, 1000);
+}
+
+
 
 function callmemaybe(){
 
     let ctx = sk.getContext('2d');
     let imageData = ctx.getImageData(0, 0, sk.width, sk.height);
-    predict_multi(imageData)
-    // console.log(imageData)
+    if(choice == 1)
+        predict_multi(imageData)
+    else 
+        predict_basic(imageData)
+        // console.log(imageData)
 }
 
 function clear_canvas(){
@@ -142,15 +177,11 @@ function predict_multi(im){
     tf.engine().startScope()
     for(let i=1;i<15;i++){
         if(i == 3 || i == 6 ||  i == 7 || i == 11) continue
-        
-        // console.log("I: ", i)
-        
         let modelA = layers[i];
         let prediction = modelA.predict(tensor);
         // prediction.print(true)
         if(i >= 11){
             let synced = prediction.dataSync()
-            
             if(i == 14){
                 answer = prediction.argMax(1).dataSync()[0]
                 synced = synced.map((num)=>{
@@ -170,7 +201,6 @@ function predict_multi(im){
             layer_images.push(img)
         }
         images.push(layer_images)
-        
     }
     
     // Update textures
@@ -238,7 +268,8 @@ var myChart = new Chart(ctx, {
         }]
     },
     options: {
-        responsive: false,
+        // responsive: false,
+        maintainAspectRatio: false,
         scales: {
             yAxes: [{
                 scaleLabel: {
@@ -394,7 +425,6 @@ function generateMeshes(){
     }
     
 }
-generateMeshes()
 
 function generateALine(posA, posB){
     const materialA = new THREE.LineBasicMaterial( { color: 0xffffff } );
@@ -417,22 +447,25 @@ function randomRange(min, max) {
 }
 
 function generateLines(){
-    for(let layer=0;layer<finalLabels.length-3-1;layer++){
-        let I = finalLabels[layer][2]
-        let J = finalLabels[layer][1]/finalLabels[layer][2]
-        for(let i=0;i<I;i+=randomRange(1,3)){
-            for(let j=0;j<J;j+=randomRange(1,3)){
-                let II = finalLabels[layer+1][2]
-                let JJ = finalLabels[layer+1][1]/finalLabels[layer+1][2]
-                for(let k=1;k<II;k+=randomRange(3,5)){
-                    for(let l=1;l<JJ;l+=randomRange(3,5)){
-                        generateALine(meshes[layer][i][j].position, meshes[layer+1][k][l].position);
-                        // console.log(i,j,k,l)
+    if(dont_render_lines == false){
+        for(let layer=0;layer<finalLabels.length-3-1;layer++){
+            let I = finalLabels[layer][2]
+            let J = finalLabels[layer][1]/finalLabels[layer][2]
+            for(let i=0;i<I;i+=randomRange(1,3)){
+                for(let j=0;j<J;j+=randomRange(1,3)){
+                    let II = finalLabels[layer+1][2]
+                    let JJ = finalLabels[layer+1][1]/finalLabels[layer+1][2]
+                    for(let k=1;k<II;k+=randomRange(3,5)){
+                        for(let l=1;l<JJ;l+=randomRange(3,5)){
+                            generateALine(meshes[layer][i][j].position, meshes[layer+1][k][l].position);
+                            // console.log(i,j,k,l)
+                        }
                     }
                 }
             }
         }
     }
+    
     // for(let layer=finalLabels.length-3-1;layer<finalLabels.length-3;layer++){
     //     let I = finalLabels[layer][2]
     //     let J = finalLabels[layer][1]/finalLabels[layer][2]
@@ -477,8 +510,6 @@ function getRandomArray(n){
     random = random.sort(() => .5 - Math.random()).slice(0,randomRange(0,Math.min(100,n))).sort()
     return random
 }
-generateLines()
-
 
 function update_base(){
     for(let i=0;i<28;i++){
@@ -490,9 +521,8 @@ function update_base(){
             texture.needsUpdate = true;
         }
     }
-    base_meshes = []
+    // base_meshes = []
 }
-
 
 function applyTexturesbyLayer(layer){
     if(layer >= 7){
@@ -527,10 +557,6 @@ function applyTexturesbyLayer(layer){
 
 }
 
-// gui.add(mesh.position, 'x').min(mesh.position.x).max(mesh.position.x+3).step(0.001)
-// gui.add(mesh.position, 'y').min(mesh.position.y).max(mesh.position.y+3).step(0.001)
-// gui.add(mesh.position, 'z').min(mesh.position.z).max(mesh.position.z+3).step(0.001)
-
 function updateTexture(image, material) {
     texture = new THREE.Texture( image );
     texture.magFilter = THREE.NearestFilter
@@ -540,31 +566,14 @@ function updateTexture(image, material) {
     material.map = texture
 };
 
+
+
+
 const sizee = 10;
 const divisions = 10;
 
 // const gridHelper = new THREE.GridHelper( sizee, divisions );
 // scene.add( gridHelper );
-
-
-// let amb = new THREE.AmbientLight(0xffffff, 0.5)
-// let pointLight = new THREE.PointLight(0x555555, 0.5)
-// pointLight.position.x = 2
-// pointLight.position.y = 3
-// pointLight.position.z = 4
-// const sphereSize = 1;
-// const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize );
-// scene.add( pointLightHelper );
-// scene.add(amb, pointLight)
-// const geo = new THREE.TorusBufferGeometry(0.3, 0.2, 16, 32)
-// let mater = new THREE.MeshPhongMaterial()
-// mater.transparent = true
-// mater.opacity = 0.5
-// mater.shininess = 100
-// let meshi = new THREE.Mesh(geo, mater)
-// meshi.position.x = 1.5
-// scene.add(meshi)
-
 
 
 /**
@@ -634,16 +643,12 @@ let ax = new THREE.Vector3(0, 1, 0);
 
 new THREE.Box3().setFromObject( group ).getCenter( group.position ).multiplyScalar( - 1 );
 
-// scene.add( object );
-scene.add(group)
-// gui.add(p, 'x').min(-50).max(50).step(0.01)
-// gui.add(p, 'y').min(-50).max(50).step(0.01)
-// gui.add(p, 'z').min(-50).max(50).step(0.01)
-// gui.add(ax, 'x').min(-50).max(50).step(0.01)
-// gui.add(ax, 'y').min(-50).max(50).step(0.01)
-// gui.add(ax, 'z').min(-50).max(50).step(0.01)
+let  pivot = new THREE.Group();
+pivot.add( group );
+group.position.set( 0, 0, 28 );
 
-
+scene.add( pivot );
+// scene.add(group)
 
 /**
  * Renderer
@@ -666,11 +671,17 @@ const tick = () =>
     controls.update()
     // group.rotation.y = elapsedTime
     // Render
-    group.rotateAroundWorldAxis(p, ax, 0.008);
+    pivot.rotation.y = elapsedTime*0.2
+    // group.rotateAroundWorldAxis(p, ax, 0.008);
     renderer.render(scene, camera)
 
     // Call tick again on the next frame
     window.requestAnimationFrame(tick)
 }
-
-tick()
+generateMeshes()
+function threeD(){
+    
+    generateLines()
+    callmemaybe();
+    tick()
+}
