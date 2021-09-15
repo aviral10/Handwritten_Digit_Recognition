@@ -1,0 +1,1 @@
+web: webpack --config ./bundler/webpack.prod.js
