@@ -1,1 +1,1 @@
-web: webpack --config ./bundler/webpack.prod.js
+web: webpack serve --config ./bundler/webpack.dev.js
