@@ -1,10 +1,10 @@
-import './style.css'
-// import './sketchpad.js'
-import { Sketchpad } from './sketchpad_new.js'
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import * as tf from '@tensorflow/tfjs';
-// import * as skk from 'sketchpad'
+import * as THREE from 'three';
+import { TextBufferGeometry } from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { Sketchpad } from './sketchpad_new.js';
+import './style.css';
+
 /// prep
 
 
@@ -57,13 +57,14 @@ sk.ontouchmove = function(event) {
 let dont_render_lines = false;
 let threeDbutt = document.getElementById('threeDbutt')
 threeDbutt.onclick = ()=>{
+    let w = parseInt(window.innerWidth);
     if(choice == 0){
         choice = 1;
         sk.onmousemove = ()=>{};
         
         threeDbutt.innerHTML = "Predict"
         document.getElementById("canv_holder").style.display = 'block';
-        let w = parseInt(window.innerWidth);
+        
         
         if(w <= 800) {
             dont_render_lines = true;
@@ -72,6 +73,9 @@ threeDbutt.onclick = ()=>{
     }else{
         
         callmemaybe();    
+    }
+    if(w <= 800) {
+        return;
     }
     $('html, body').animate({
         'scrollTop' : $("#canv").position().top
@@ -307,11 +311,6 @@ updateChart([0,0,0,0,0,0,0,0,0,0]);
 
 
 
-/// THREE JS 
-import * as dat from 'dat.gui'
-import { update } from '@tensorflow/tfjs-layers/dist/variables';
-import { random } from 'gsap/all';
-import { DataTexture2DArray, TextBufferGeometry } from 'three';
 
 const group = new THREE.Group();
 // Canvas
