@@ -11,6 +11,8 @@ let model;
 let layers = [];
 let answer;
 let base_image = []
+
+// Load the model and Initialize respective layers of the model
 function loadModel(){
     model = tf.loadLayersModel("mnist_model_js/model.json");
     model.then((res)=>{
@@ -24,7 +26,7 @@ function loadModel(){
 loadModel()
 
 
-// Setup Sketchpad
+// Setup Sketchpad to take the user input
 let sk = document.getElementById('sketchpad')
 let sketchpad = new Sketchpad({
     element: '#sketchpad',
@@ -66,7 +68,7 @@ threeDbutt.onclick = ()=>{
         threeDbutt.innerHTML = "Predict"
         document.getElementById("canv_holder").style.display = 'block';
         
-        
+        // For mobile devices
         if(w <= 800) {
             dont_render_lines = true;
         }
@@ -164,8 +166,10 @@ let finalLabels  = [[26,64,8],
 
 function predict_multi(im){
     images = []
+    // Initialize a sandbox environment for the new tensors
     let tensor = tf.tidy(() => {
         let ts = tf.browser.fromPixels(im, 1);
+        // Invert the image
         ts = tf.cast(ts,'float32');
         ts = ts.div(tf.scalar(-255))
         ts = ts.add(tf.scalar(1))
@@ -178,12 +182,13 @@ function predict_multi(im){
     });
     tf.engine().startScope()
     for(let i=1;i<15;i++){
-        if(i == 3 || i == 6 ||  i == 7 || i == 11) continue
+        if(i == 3 || i == 6 ||  i == 7 || i == 11) continue         // Ignore these layers
         let modelA = layers[i];
         let prediction = modelA.predict(tensor);
-        // prediction.print(true)
+        // Populate different layers with actual outputs of the intermediate layers
         if(i >= 11){
             let synced = prediction.dataSync()
+            // If we are in the last layer, calculate the final answer
             if(i == 14){
                 answer = prediction.argMax(1).dataSync()[0]
                 synced = synced.map((num)=>{
@@ -205,7 +210,7 @@ function predict_multi(im){
         images.push(layer_images)
     }
     
-    // Update textures
+    // Update textures in the 3D visualization
     for(let i=0;i<images.length;i++){
         applyTexturesbyLayer(i);
     }
@@ -223,6 +228,7 @@ function predict_basic(im){
     let tensor = tf.tidy(() => {
         let ts = tf.browser.fromPixels(im, 1);
         ts = tf.cast(ts,'float32');
+        // invert the image as: -x + 1
         ts = ts.div(tf.scalar(-255))
         ts = ts.add(tf.scalar(1))
         ts = tf.image.resizeBilinear(ts, [28,28]).mean(2).expandDims(-1).expandDims()
@@ -230,6 +236,7 @@ function predict_basic(im){
     });
     
     tf.engine().startScope()
+    // Output of the last layer
     let prediction = layers[14].predict(tensor);
     let preds = prediction.dataSync().map((num)=>{
         return (num*100).toPrecision(4)
@@ -415,31 +422,36 @@ function generateMeshes(){
         }
     }
 }
+generateMeshes()
 
 
 function generateALine(posA, posB){
+    // Create a material 
     const materialA = new THREE.LineBasicMaterial( { color: 0xffffff } );
-
+    // Set properties for the material
     materialA.transparent = true;
     materialA.opacity = 0.2
     const points = [];
     points.push( posA );
     points.push( posB );
-
+    //Create geometry for the object
     const geometry = new THREE.BufferGeometry().setFromPoints( points );
     const line = new THREE.Line( geometry, materialA );
     group.add(line)
 }
 
-
+// Utitlity function for getting a random number between a given range
 function randomRange(min, max) {
     return Math.floor(Math.random() * (max - min) + min);
 }
 
 
 function generateLines(){
+    // Draw the connections between all the layers
     if(dont_render_lines == false){
+        // Dont execute on mobile devices
         for(let layer=0;layer<10-3-1;layer++){
+            // This logic works for the first 7 layers
             let I = finalLabels[layer][2]
             let J = finalLabels[layer][1]/finalLabels[layer][2]
             for(let i=0;i<I;i+=randomRange(1,3)){
@@ -455,7 +467,7 @@ function generateLines(){
             }
         }
     }
-    
+    // Further layers are handled here
     for(let layer=10-3;layer<10-1;layer++){
         let I = finalLabels[layer][2]
         let J = finalLabels[layer][1]/finalLabels[layer][2]
@@ -475,6 +487,7 @@ function generateLines(){
 
 
 function getRandomArray(n){
+    // Utility function for generating a random array
     let random = []
     for(let i=0;i<n;i++){
         random.push(i)
@@ -485,6 +498,8 @@ function getRandomArray(n){
 
 
 function update_base(){
+    // Handling the base layer seperately
+    // updating textures for the base 28x28 image
     for(let i=0;i<28;i++){
         for(let j=0;j<28;j++){
             let val = Math.floor(Math.abs(base_image[i*28+j]*255));
@@ -499,6 +514,8 @@ function update_base(){
 
 
 function applyTexturesbyLayer(layer){
+    // Update textures of all the layers when a new prediction is made
+    // Works on a single layer for the param:layer
     if(layer >= 7){
         let sz = finalLabels[layer][1]
         for(let i=0;i<sz;i++){
@@ -513,6 +530,7 @@ function applyTexturesbyLayer(layer){
         }
         return;
     }
+    // Execute the below logic for layers 1-6
     let I = finalLabels[layer][2]
     let J = finalLabels[layer][1]/finalLabels[layer][2]
     let sz = finalLabels[layer][0]
@@ -530,6 +548,7 @@ function applyTexturesbyLayer(layer){
 
 
 function updateTexture(image, material) {
+    // Update texture of a single image based on the material recieved as a parameter
     texture = new THREE.Texture( image );
     texture.magFilter = THREE.NearestFilter
     texture.minFilter = THREE.NearestFilter
@@ -583,8 +602,10 @@ scene.add(camera)
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
 
+// Origin 
 controls.target = new THREE.Vector3(0,0,0)
 
+// Utility function for setting up the rotation of the entire scene
 THREE.Object3D.prototype.rotateAroundWorldAxis = function() {
 
     var q1 = new THREE.Quaternion();
@@ -601,15 +622,13 @@ THREE.Object3D.prototype.rotateAroundWorldAxis = function() {
     }
 }();
 
+// Setting up a pivot point for the rotation
 let p = new THREE.Vector3(0, 0, 0);
 let ax = new THREE.Vector3(0, 1, 0);
-
 new THREE.Box3().setFromObject( group ).getCenter( group.position ).multiplyScalar( - 1 );
-
 let  pivot = new THREE.Group();
 pivot.add( group );
 group.position.set( 0, 0, 28 );
-
 scene.add( pivot );
 // scene.add(group)
 
@@ -628,8 +647,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
  */
 let rotateAnim = true;
 const clock = new THREE.Clock()
-const tick = () =>
-{
+const tick = () => {
     const elapsedTime = clock.getElapsedTime()
 
     // Update controls
@@ -645,9 +663,6 @@ const tick = () =>
     // Call tick again on the next frame
     window.requestAnimationFrame(tick)
 }
-
-
-generateMeshes()
 
 
 function threeD(){ 
