@@ -407,6 +407,7 @@ function generateMeshes(){
         }
         meshes.push(TEMP)
     }
+    // Generate meshes for the base layer as well
     base_meshes = []
     let sz = layersLabels[0][0]
     for(let i=0;i<28;i++){
@@ -537,8 +538,8 @@ function applyTexturesbyLayer(layer){
     for(let i=0;i<I;i++){
         for(let j=0;j<J;j++){
             let num = i*J+j;
-
             let image = images[layer][num]
+            // Update textures when the image is fully loaded
             image.onload = ()=>{
                 updateTexture(image, meshes[layer][i][j].material)
             }
