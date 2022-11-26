@@ -1,7 +1,7 @@
 # Handwritten Digit Recognition
 
 ## Website: 
-https://handwrittendigitsrecognition.herokuapp.com/
+https://handwritten-digit-recognition-eight.vercel.app/
 
 ### Instructions:
 - Draw a single digit on the Canvas and let the model predict the drawn digit
